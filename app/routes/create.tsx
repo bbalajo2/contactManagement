@@ -35,7 +35,7 @@ export const action: ActionFunction = async ({ request }) => {
         });
     }
     
-    return redirect('~/routes/index');
+    return redirect('../index');
 }
     
 
