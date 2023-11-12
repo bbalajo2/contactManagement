@@ -14,6 +14,6 @@ model contacts {
   id            Int    @id @default(autoincrement())
   name          String
   email         String @unique
-  phone_number  Int
+  phoneNumber   BigInt 
   address       String?
 }

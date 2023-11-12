@@ -1,36 +1,30 @@
-import { useLoaderData, Form } from '@remix-run/react';
+import { useLoaderData, Form, useActionData } from '@remix-run/react';
 import { db } from '~/services/index';
 import { Link } from '@remix-run/react';
-import { contactSchema } from './create';
-import { redirect } from '@remix-run/node';
+import { contactSchema } from '~/schema/contactSchema';
+import { json, redirect } from '@remix-run/node';
+import { contact, ActionData, LoaderParams } from '~/interfaces/interfaces';
 
-
-interface contact {
-    id: number;
-    name: string;
-    email: string;
-    phone_number: number;
-    address: string;
-}
-
-interface LoaderParams {
-    id: number;
-}
-
+/**
+ * Loader function to fetch contact details.
+ */
 export async function loader({ params }: { params: LoaderParams }) {
     const { id } = params;
     const contact = await db.contacts.findUnique({
-        where: {
-            id: Number(id) }
+        where: { id: Number(id) }
     });
     return contact;
 }
+
+/**
+ * Action function to handle contact update.
+ */
 
 export async function action({ request, params }: { request: Request, params: LoaderParams }) {
     const formData = await request.formData();
     const name = formData.get('name');
     const email = formData.get('email');
-    const phone_number = formData.get('phone_number');
+    const phoneNumber = formData.get('phoneNumber');
     const address = formData.get('address');
 
     const parsedData = Object.fromEntries(formData.entries());
@@ -40,14 +34,19 @@ export async function action({ request, params }: { request: Request, params: Lo
     console.log(parsedData);
 
     if (!result.success) {
-        console.log('Cant do this');
+        const errors = result.error.errors.reduce((acc: {[key: string]: string}, curr) => {
+            acc[curr.path[0]] = curr.message;
+            return acc;
+        }, {});
+
+        return json({ errors, formData: parsedData }, { status: 400 });
     } else {
         await db.contacts.update({
             where: { id: Number(params.id) },
             data: {
                 name: String(name),
                 email: String(email),
-                phone_number: Number(phone_number),
+                phoneNumber: Number(phoneNumber),
                 address: String(address)
             },
         });
@@ -55,11 +54,13 @@ export async function action({ request, params }: { request: Request, params: Lo
     return redirect('../index');
 }
 
-
-
+/**
+ * Form for editing contact details.
+ */
 
 export default function ContactDetails() {
     const contact = useLoaderData<contact>();
+    const actionData: ActionData | undefined = useActionData();
 
     return (
         <div className="container mx-auto p-4">
@@ -69,18 +70,21 @@ export default function ContactDetails() {
                     <div>
                         <label htmlFor="name">Name:</label>
                         <input type="text" id="name" name="name" defaultValue={contact.name} required />
+                        {actionData?.errors?.name && <p className="error-message">{actionData.errors.name}</p >}
                     </div>
                     <div>
                         <label htmlFor="email">Email:</label>
                         <input type="email" id="email" name="email" defaultValue={contact.email} required />
+                        {actionData?.errors?.email && <p className="error-message">{actionData.errors.email}</p>}
                     </div>
                     <div>
-                        <label htmlFor="phone_number">Phone:</label>
-                        <input type="tel" id="phone_number" name="phone_number" defaultValue={contact.phone_number} required />
+                        <label htmlFor="phoneNumber">Phone:</label>
+                        <input type="tel" id="phoneNumber" name="phoneNumber" defaultValue={contact.phoneNumber} required />
+                        {actionData?.errors?.phoneNumber && <p className="error-message">{actionData.errors.phoneNumber}</p>}
                     </div>
                     <div>
                         <label htmlFor="address">Address:</label>
-                        <input type="text" id="address" name="address" defaultValue={contact.address} required />
+                        <input type="text" id="address" name="address" defaultValue={contact.address} />
                     </div>
                     <button type='submit' className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
                         Update
@@ -90,7 +94,9 @@ export default function ContactDetails() {
                 <form method="POST" action={`../deleteContact/${contact.id}`}>
                     <div className="container mx-auto p-4">
                         <Link to={`/deleteContact/${contact.id}`}>
-                            <button>View Details</button>
+                            <button className="bg-red-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
+                                Delete
+                                </button>
                         </Link>
                     </div>
                 </form>
